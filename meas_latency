@@ -1,0 +1,85 @@
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#define NUM_TRAVERSALS 32768
+#define NUM_ELEMENTS 64
+#define STRIDE 16
+
+uint64_t *array[NUM_ELEMENTS*STRIDE];
+
+void init_array() {
+  //To defeat hardware data prefetching from pre-loading the
+  //cache lines the program will access, initialize the pointers
+  //in the array elements to form a random cycle through the
+  //array elements using Sattolo's algorithm:
+  // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Sattolo.27s_algorithm
+
+  int i, j;
+  uint64_t *tmp;
+
+  for (i=0; i < NUM_ELEMENTS; i++) {
+    array[i*STRIDE] = (uint64_t*)&array[i*STRIDE];
+  } //for i
+
+  i = NUM_ELEMENTS;
+  while (i > 1) {
+    i--;
+    j = rand() % i;
+    tmp = array[i*STRIDE];
+    array[i*STRIDE] = array[j*STRIDE];
+    array[j*STRIDE] = tmp;
+  } //while
+};
+
+
+double calc_time(struct timespec start, struct timespec end) {
+  double start_sec = (double)start.tv_sec*1000000000.0 + (double)start.tv_nsec;
+  double end_sec = (double)end.tv_sec*1000000000.0 + (double)end.tv_nsec;
+
+  if (end_sec < start_sec) {
+    return 0;
+  } else {
+    return end_sec - start_sec;
+  }
+};
+int main()
+{
+  struct timespec start_time, end_time;
+  int i;
+  uint64_t *ptr;
+
+  init_array();
+  ptr = (uint64_t*)&array[0];
+
+  clock_gettime(CLOCK_MONOTONIC, &start_time);
+  for (i=0; i < NUM_ELEMENTS*NUM_TRAVERSALS; i++) {
+    //Access memory
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+    ptr = *(uint64_t**)ptr;
+  }
+  clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+  printf("Result=%llx\n", *ptr);
+  double elapsed_ns = calc_time(start_time, end_time);
+  printf("Time=%f\n", elapsed_ns);
+  printf("NS per element=%f\n", (elapsed_ns/(((uint64_t)NUM_ELEMENTS*(uint64_t)NUM_TRAVERSALS)*16)));
+
+  return 0;
+}
+
